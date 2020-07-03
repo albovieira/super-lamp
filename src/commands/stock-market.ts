@@ -1,5 +1,6 @@
 import { Command, flags } from "@oclif/command";
 import { cli } from "cli-ux";
+import * as chalk from "chalk";
 import { storage } from "../services/storage";
 import { Alpha } from "../services/clients/alpha";
 
@@ -44,23 +45,38 @@ export default class StockMarket extends Command {
       }
     } else if (flags.check) {
       const quotes = storage.get(args.alias);
+      cli.action.start('starting a process')
       const raw = (await Promise.all(quotes.map(Alpha.summary)))
       .filter(
         (r) => !!r
       ) as any;
+      cli.action.stop()
 
       cli.table(
         raw,
         {
           symbol: {},
-          open: {},
-          high: {},
-          low: {},
-          price: {},
+          open: {
+            get: (row:any) => chalk.bgWhite(chalk.black(row.open))
+          },
+          high: {
+            get: (row:any) => chalk.bgBlack(chalk.green(row.high))
+          },
+          low: {
+            get: (row:any) => chalk.bgBlack(chalk.red(row.low))
+          },
+          price: {
+            get: (row:any) => chalk.bgBlack(chalk.blue(row.price))
+          },
           volume: {},
           latest: {},
           previous: {},
-          change: {},
+          change: {
+            get: (row:any) => {
+              const n = row.change.split("%")[0];
+              return this.applyColor(n);
+            },
+          },
         },
         {
           sort: flags.sort,
@@ -68,5 +84,13 @@ export default class StockMarket extends Command {
         }
       );
     }
+  }
+
+  private applyColor(value: string) {
+    return Number(value) > 0
+      ? chalk.green(value) // if
+      : Number(value) < 0
+      ? chalk.red(value) // else if
+      : value;
   }
 }
