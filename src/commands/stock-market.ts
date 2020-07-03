@@ -35,22 +35,36 @@ export default class StockMarket extends Command {
 
   async run() {
     const { args, flags } = this.parse(StockMarket);
-
-    console.log(args, flags);
     if (flags.set) {
-      const fromDB = storage.get(args.alias);
-      if (!fromDB) {
-        const quotes = (flags.set || "").split(",");
-        storage.set(args.alias, quotes);
-      }
+      this.log(`Saving stocks with alias ${args.alias}`)
+      this.set(args.alias, flags.set)
+      this.log('Done')
     } else if (flags.check) {
-      const quotes = storage.get(args.alias);
-      cli.action.start('starting a process')
+      this.log(`Getting stocks for alias ${args.alias}`)
+      await this.check(args.alias, flags.sort, flags.filter)
+      this.log('Done!')
+    }
+  }
+
+  private set(alias: string, quotes: string) {
+    const quoteAsArray = (quotes || "").split(",")
+    if(quoteAsArray.length === 0) {
+      throw new Error('invalid quotes')
+    }
+    storage.set(alias, quoteAsArray);
+  }
+
+  private async check(alias: string, sort:any, filter: any) {
+    const quotes = storage.get(alias);
+      cli.action.start('')
       const raw = (await Promise.all(quotes.map(Alpha.summary)))
       .filter(
         (r) => !!r
       ) as any;
-      cli.action.stop()
+      if(raw.length === 0) {
+        cli.action.stop()
+        throw new Error('quotes not found')
+      }
 
       cli.table(
         raw,
@@ -79,18 +93,18 @@ export default class StockMarket extends Command {
           },
         },
         {
-          sort: flags.sort,
-          filter: flags.filter,
+          sort: sort,
+          filter: filter,
         }
       );
-    }
+      cli.action.stop()
   }
 
   private applyColor(value: string) {
     return Number(value) > 0
-      ? chalk.green(value) // if
+      ? chalk.green(value)
       : Number(value) < 0
-      ? chalk.red(value) // else if
+      ? chalk.red(value)
       : value;
   }
 }
